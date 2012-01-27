@@ -95,25 +95,6 @@ int main(int argc, char* argv[]) {
       }
       logging::info(logging::low) << "Centreon Connector SSH "
         << CENTREON_CONNECTOR_SSH_VERSION << " starting";
-// #if LIBSSH2_VERSION_NUM >= 0x010205
-//       // Initialize libssh2.
-//       logging::debug(logging::medium) << "initializing libssh2";
-//       if (libssh2_init(0))
-//         throw (basic_error() << "libssh2 initialization failed");
-//       {
-//         char const* version(libssh2_version(LIBSSH2_VERSION_NUM));
-//         if (!version)
-//           throw (basic_error() << "libssh2 version is too old (>= "
-//                    << LIBSSH2_VERSION << " required)");
-//         logging::info(logging::low) << "libssh2 version "
-//           << version << " successfully loaded";
-//       }
-// #endif /* libssh2 version >= 1.2.5 */
-
-//       // Set termination handler.
-//       logging::debug(logging::medium)
-//         << "installing termination handler";
-//       signal(SIGTERM, term_handler);
 
 //       // Program policy.
 //       policy p;
