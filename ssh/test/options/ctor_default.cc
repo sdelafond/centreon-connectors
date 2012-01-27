@@ -1,5 +1,5 @@
 /*
-** Copyright 2011-2012 Merethis
+** Copyright 2012 Merethis
 **
 ** This file is part of Centreon Connector SSH.
 **
@@ -18,34 +18,40 @@
 ** <http://www.gnu.org/licenses/>.
 */
 
-#ifndef CCCS_OPTIONS_HH
-#  define CCCS_OPTIONS_HH
+#include "com/centreon/connector/ssh/options.hh"
 
-#  include "com/centreon/connector/ssh/namespace.hh"
-#  include "com/centreon/misc/get_options.hh"
-
-CCCS_BEGIN()
+using namespace com::centreon::connector::ssh;
 
 /**
- *  @class options options.hh "com/centreon/connector/ssh/options.hh"
- *  @brief Parse and expose command line arguments.
+ *  Check if SSH connector options are properly default-constructed.
  *
- *  Parse and expose command line arguments.
+ *  @return 0 on success.
  */
-class         options : public com::centreon::misc::get_options {
-public:
-              options();
-              options(options const& opts);
-              ~options() throw ();
-  options&    operator=(options const& opts);
-  std::string help() const;
-  void        parse(int argc, char* argv[]);
-  std::string usage() const;
+int main() {
+  // Object.
+  options opts;
 
-private:
-  void        _init();
-};
+  // Check of non-existing arguments.
+  int retval(0);
+  try {
+    opts.get_argument('x');
+    retval |= 1;
+  }
+  catch (...) {}
+  try {
+    opts.get_argument("y");
+    retval |= 1;
+  }
+  catch (...) {}
+  try {
+    opts.get_argument('z');
+    retval |= 1;
+  }
+  catch (...) {}
 
-CCCS_END()
-
-#endif // !CCCS_OPTIONS_HH
+  // Check of existing arguments.
+  return (retval
+          || opts.get_argument('d').get_is_set()
+          || opts.get_argument('h').get_is_set()
+          || opts.get_argument('v').get_is_set());
+}

@@ -149,7 +149,7 @@ add_library("${CONNECTORLIB}"
   # "${SRC_DIR}/checks/result.cc"
   # "${SRC_DIR}/checks/timeout.cc"
   "${SRC_DIR}/multiplexer.cc"
-  # "${SRC_DIR}/options.cc"
+  "${SRC_DIR}/options.cc"
   # "${SRC_DIR}/orders/listener.cc"
   # "${SRC_DIR}/orders/parser.cc"
   # "${SRC_DIR}/policy.cc"
@@ -165,7 +165,7 @@ add_library("${CONNECTORLIB}"
   # "${INC_DIR}/checks/timeout.hh"
   "${INC_DIR}/multiplexer.hh"
   "${INC_DIR}/namespace.hh"
-  # "${INC_DIR}/options.hh"
+  "${INC_DIR}/options.hh"
   # "${INC_DIR}/orders/listener.hh"
   # "${INC_DIR}/orders/parser.hh"
   # "${INC_DIR}/policy.hh"
@@ -456,16 +456,29 @@ if (WITH_TESTING)
   # add_test("${TEST_NAME}" "${TEST_NAME}")
 
 
-  # #
-  # # Root namespace tests.
-  # #
-  # # multiplexer tests.
-  # #   Check singleton.
-  # set(TEST_NAME "multiplexer_singleton")
-  # add_executable("${TEST_NAME}"
-  #   "${TEST_DIR}/multiplexer/singleton.cc")
-  # target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
-  # add_test("${TEST_NAME}" "${TEST_NAME}")
+  #
+  # Root namespace tests.
+  #
+  # multiplexer tests.
+  #   Check singleton.
+  set(TEST_NAME "multiplexer_singleton")
+  add_executable("${TEST_NAME}"
+    "${TEST_DIR}/multiplexer/singleton.cc")
+  target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
+  add_test("${TEST_NAME}" "${TEST_NAME}")
+  # options tests.
+  #   Default constructor.
+  set(TEST_NAME "options_ctor_default")
+  add_executable("${TEST_NAME}"
+    "${TEST_DIR}/options/ctor_default.cc")
+  target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
+  add_test("${TEST_NAME}" "${TEST_NAME}")
+  #   Parsing.
+  set(TEST_NAME "options_parse")
+  add_executable("${TEST_NAME}"
+    "${TEST_DIR}/options/parse.cc")
+  target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
+  add_test("${TEST_NAME}" "${TEST_NAME}")
   # # reporter tests.
   # #   Default constructor.
   # set(TEST_NAME "reporter_ctor_default")
@@ -493,9 +506,9 @@ if (WITH_TESTING)
   # add_test("${TEST_NAME}" "${TEST_NAME}")
 
 
-  # #
-  # # Process tests.
-  # #
+  #
+  # Process tests.
+  #
   # # Test library.
   # add_library("connector_ssh_binary" STATIC
   #   # Sources.
@@ -504,14 +517,14 @@ if (WITH_TESTING)
   #   "${TEST_DIR}/connector/binary.hh"
   #   "${TEST_DIR}/connector/get_user_name.hh")
   # set(TEST_LIBRARIES "connector_ssh_binary" ${CLIB_LIBRARIES})
-  # # Help.
-  # add_test("connector_help" "${CONNECTOR}" "--help")
-  # # Version.
-  # add_test("connector_version" "${CONNECTOR}" "--version")
-  # # Invalid flag.
-  # add_test("connector_invalid_flag" "${CONNECTOR}" "--merethis")
-  # set_tests_properties("connector_invalid_flag"
-  #   PROPERTIES WILL_FAIL TRUE)
+  # Help.
+  add_test("connector_help" "${CONNECTOR}" "--help")
+  # Version.
+  add_test("connector_version" "${CONNECTOR}" "--version")
+  # Invalid flag.
+  add_test("connector_invalid_flag" "${CONNECTOR}" "--merethis")
+  set_tests_properties("connector_invalid_flag"
+    PROPERTIES WILL_FAIL TRUE)
   # # Invalid command.
   # set(TEST_NAME "connector_invalid_command")
   # add_executable("${TEST_NAME}"
