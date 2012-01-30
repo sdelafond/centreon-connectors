@@ -21,17 +21,17 @@
 #ifndef CCCS_SESSIONS_SESSION_HH
 #  define CCCS_SESSIONS_SESSION_HH
 
-#  include <libssh2.h>
+#  include <libssh/libssh.h>
 #  include <set>
 #  include "com/centreon/connector/ssh/namespace.hh"
 #  include "com/centreon/connector/ssh/sessions/credentials.hh"
-#  include "com/centreon/connector/ssh/sessions/listener.hh"
-#  include "com/centreon/connector/ssh/sessions/socket_handle.hh"
-#  include "com/centreon/handle_listener.hh"
 
 CCCS_BEGIN()
 
 namespace                 sessions {
+  // Forward declaration.
+  class                   listener;
+
   /**
    *  @class session session.hh "com/centreon/connector/ssh/session.hh"
    *  @brief SSH session.
@@ -39,44 +39,26 @@ namespace                 sessions {
    *  SSH session between Centreon Connector SSH and a remote
    *  host. The session is kept open as long as needed.
    */
-  class                   session : public com::centreon::handle_listener {
+  class                   session {
   public:
                           session(credentials const& creds);
                           ~session() throw ();
     void                  close();
     void                  connect();
-    void                  error(handle& h);
     credentials const&    get_credentials() const throw ();
-    LIBSSH2_SESSION*      get_libssh2_session() const throw ();
-    socket_handle*        get_socket_handle() throw ();
     bool                  is_connected() const throw ();
     void                  listen(listener* listnr);
-    void                  read(handle& h);
     void                  unlisten(listener* listnr);
-    bool                  want_read(handle& h);
-    bool                  want_write(handle& h);
-    void                  write(handle& h);
 
   private:
-    enum                  e_step {
-      session_startup = 0,
-      session_password,
-      session_key,
-      session_keepalive
-    };
-
                           session(session const& s);
     session&              operator=(session const& s);
-    void                  _available();
-    void                  _key();
-    void                  _passwd();
-    void                  _startup();
+    void                  _on_connected() throw ();
+    void                  _on_error() throw ();
 
     credentials           _creds;
     std::set<listener*>   _listnrs;
-    LIBSSH2_SESSION*      _session;
-    socket_handle         _socket;
-    e_step                _step;
+    ssh_session           _session;
   };
 }
 

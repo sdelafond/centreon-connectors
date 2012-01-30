@@ -18,20 +18,12 @@
 ** <http://www.gnu.org/licenses/>.
 */
 
-#include <arpa/inet.h>
 #include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <iostream>
-#include <libssh2.h>
 #include <memory>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <pwd.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
 #include "com/centreon/connector/ssh/multiplexer.hh"
+#include "com/centreon/connector/ssh/sessions/class_task.hh"
+#include "com/centreon/connector/ssh/sessions/listener.hh"
 #include "com/centreon/connector/ssh/sessions/session.hh"
 #include "com/centreon/exceptions/basic.hh"
 #include "com/centreon/logging/logger.hh"
@@ -52,10 +44,11 @@ using namespace com::centreon::connector::ssh::sessions;
  */
 session::session(credentials const& creds)
   : _creds(creds),
-    _session(NULL),
-    _step(session_startup) {
+    _session(NULL) {
   // Create session instance.
-  _session = libssh2_session_init();
+  logging::debug(logging::low) << "allocating SSH session object for "
+    << _creds.get_user() << "@" << _creds.get_host();
+  _session = ssh_new();
   if (!_session)
     throw (basic_error()
              << "SSH session creation failed (out of memory ?)");
@@ -65,40 +58,37 @@ session::session(credentials const& creds)
  *  Destructor.
  */
 session::~session() throw () {
-  try {
-    this->close();
-  }
-  catch (...) {}
-
   // Delete session.
-  libssh2_session_set_blocking(_session, 1);
-  libssh2_session_disconnect(
-    _session,
-    "Centreon Connector SSH shutdown");
-  libssh2_session_free(_session);
+  logging::debug(logging::low) << "deleting SSH session object of "
+    << _creds.get_user() << "@" << _creds.get_host();
+  this->close();
+  ssh_free(_session);
 }
 
 /**
  *  Close session.
  */
 void session::close() {
-  // Unregister with multiplexer.
-  multiplexer::instance().handle_manager::remove(&_socket);
-  multiplexer::instance().handle_manager::remove(this);
+  if (is_connected()) {
+    // Close session.
+    logging::info(logging::medium) << "gracefully disconnecting from "
+      << _creds.get_user() << "@" << _creds.get_host();
+    ssh_disconnect(_session);
 
-  // Notify listeners.
-  {
-    std::set<listener*> listnrs(_listnrs);
-    for (std::set<listener*>::iterator
-           it = listnrs.begin(),
-           end = listnrs.end();
-         it != end;
-         ++it)
-      (*it)->on_close(*this);
+    // Notify listeners.
+    logging::debug(logging::medium) << "notifying listeners of session "
+      << _creds.get_user() << "@" << _creds.get_host()
+      << " that session is getting closed";
+    {
+      std::set<listener*> listnrs(_listnrs);
+      for (std::set<listener*>::iterator
+             it = listnrs.begin(),
+             end = listnrs.end();
+           it != end;
+           ++it)
+        (*it)->on_close(*this);
+    }
   }
-
-  // Close socket.
-  _socket.close();
 
   return ;
 }
@@ -114,119 +104,91 @@ void session::connect() {
     return ;
   }
 
-  // Step.
-  _step = session_startup;
-
-  // Host pointer.
-  char const* host_ptr(_creds.get_host().c_str());
-
-  // Host lookup.
-  logging::info(logging::high) << "looking up address " << host_ptr;
-  sockaddr_in sin;
-  memset(&sin, 0, sizeof(sin));
-  {
-    // Try to avoid DNS lookup.
-    in_addr_t addr(inet_addr(host_ptr));
-    if (addr != (in_addr_t)-1) {
-      logging::debug(logging::high) << "host "
-        << host_ptr << " is an IP address";
-      sin.sin_addr.s_addr = addr;
+  // Set options.
+  try {
+    logging::info(logging::high) << "connecting to "
+      << _creds.get_user() << "@" << _creds.get_host();
+    logging::debug(logging::medium) << "setting options of session "
+      << _creds.get_user() << "@" << _creds.get_host();
+    if (!ssh_options_set(
+           _session,
+           SSH_OPTIONS_HOST,
+           _creds.get_user().c_str())
+        || !ssh_options_set(
+              _session,
+              SSH_OPTIONS_USER,
+              _creds.get_user().c_str())) { // XXX: set timeout
+      char const* msg(ssh_get_error(_session));
+      throw (basic_error() << "error occurred while preparing session "
+             << _creds.get_user() << "@" << _creds.get_host()
+             << " for connection: " << msg);
     }
-    // DNS lookup.
-    else {
-      // IPv4 address lookup only.
-      addrinfo hint;
-      memset(&hint, 0, sizeof(hint));
-      hint.ai_family = AF_INET;
-      hint.ai_socktype = SOCK_STREAM;
-      addrinfo* res;
-      int retval(getaddrinfo(
-                   host_ptr,
-                   NULL,
-                   &hint,
-                   &res));
-      if (retval)
-        throw (basic_error() << "lookup of host '" << host_ptr
-                 << "' failed: " << gai_strerror(retval));
-      else if (!res)
-        throw (basic_error() << "no IPv4 address found for host '"
-                 << host_ptr << "'");
 
-      // Log message.
-      logging::debug(logging::low) << "found host " << host_ptr
-        << " address through name resolution";
-
-      // Get address.
-      sin.sin_addr.s_addr
-        = ((sockaddr_in*)(res->ai_addr))->sin_addr.s_addr;
-
-      // Free result.
-      freeaddrinfo(res);
+    // Connect.
+    logging::debug(logging::medium)
+      << "launching real connection of session "
+      << _creds.get_user() << "@" << _creds.get_host();
+    if (ssh_connect(_session) != SSH_OK) {
+      char const* msg(ssh_get_error(_session));
+      throw (basic_error() << "could not connect session "
+             << _creds.get_user() << "@" << _creds.get_host()
+             << ": " << msg);
     }
+
+    // Public key authentication.
+    logging::debug(logging::medium)
+      << "attempting public key authentication on session "
+      << _creds.get_user() << "@" << _creds.get_host();
+    int ret;
+    ret = ssh_userauth_autopubkey(_session, NULL);
+    if (ret != SSH_AUTH_SUCCESS) {
+      // Password-based authentication.
+      logging::debug(logging::medium)
+        << "attempting password authentication on session "
+        << _creds.get_user() << "@" << _creds.get_host();
+      ret = ssh_userauth_password(
+              _session,
+              NULL,
+              _creds.get_password().c_str());
+      if (ret != SSH_AUTH_SUCCESS) {
+        char const* msg(ssh_get_error(_session));
+        throw (basic_error() << "could not connect session "
+               << _creds.get_user() << "@" << _creds.get_host()
+               << ": " << msg);
+      }
+      else
+        logging::info(logging::medium)
+          << "password authentication succeeded on session "
+          << _creds.get_user() << "@" << _creds.get_host();
+    }
+    else
+      logging::info(logging::medium)
+        << "public key authentication succeeded on session "
+        << _creds.get_user() << "@" << _creds.get_host();
+
+    // Asynchronously notify listeners of connection success.
+    std::auto_ptr<class_task<session> >
+      ct(new class_task<session>(this, &session::_on_connected));
+    multiplexer::instance().task_manager::add(
+      ct.get(),
+      0,
+      false,
+      true);
+    ct.release();
+  }
+  catch (...) {
+    // Asynchronously notify listeners of connection issue.
+    std::auto_ptr<class_task<session> >
+      ct(new class_task<session>(this, &session::_on_error));
+    multiplexer::instance().task_manager::add(
+      ct.get(),
+      0,
+      false,
+      true);
+    ct.release();
+    throw ;
   }
 
-  // Set address info.
-  sin.sin_family = AF_INET;
-  sin.sin_port = htons(22); // Standard SSH port.
-
-  // Create socket.
-  int mysocket;
-  mysocket = ::socket(AF_INET, SOCK_STREAM, 0);
-  if (mysocket < 0) {
-    char const* msg(strerror(errno));
-    throw (basic_error() << "socket creation failed: " << msg);
-  }
-
-  // Set socket non-blocking.
-  int flags(fcntl(mysocket, F_GETFL));
-  if (flags < 0) {
-    char const* msg(strerror(errno));
-    ::close(mysocket);
-    throw (basic_error() << "could not get socket flags: " << msg);
-  }
-  flags |= O_NONBLOCK;
-  if (fcntl(mysocket, F_SETFL, flags) == -1) {
-    char const* msg(strerror(errno));
-    ::close(mysocket);
-    throw (basic_error()
-             << "could not make socket non blocking: " << msg);
-  }
-
-  // Connect to remote host.
-  if ((::connect(mysocket, (sockaddr*)&sin, sizeof(sin)) != 0)
-      && (errno != EINPROGRESS)) {
-      char const* msg(strerror(errno));
-      ::close(mysocket);
-      throw (basic_error() << "could not connect to '"
-               << host_ptr << "': " << msg);
-  }
-
-  // Set socket handle.
-  _socket.set_native_handle(mysocket);
-
-  // Register with multiplexer.
-  multiplexer::instance().handle_manager::add(&_socket, this, true);
-
-  // Launch the connection process.
-  logging::debug(logging::medium)
-    << "manually launching the connection process of session "
-    << _creds.get_user() << "@" << _creds.get_host();
-  _startup();
-
-  return ;
-}
-
-/**
- *  Error callback.
- *
- *  @param[in,out] h Handle.
- */
-void session::error(handle& h) {
-  (void)h;
-  logging::error(logging::low)
-    << "error detected on socket, shutting down session "
-    << _creds.get_user() << "@" << _creds.get_host();
-  this->close();
   return ;
 }
 
@@ -240,30 +202,12 @@ credentials const& session::get_credentials() const throw () {
 }
 
 /**
- *  Get the libssh2 session object.
- *
- *  @return libssh2 session object.
- */
-LIBSSH2_SESSION* session::get_libssh2_session() const throw () {
-  return (_session);
-}
-
-/**
- *  Get the socket handle.
- *
- *  @return Socket handle.
- */
-socket_handle* session::get_socket_handle() throw () {
-  return (&_socket);
-}
-
-/**
  *  Check if session is connected.
  *
  *  @return true if session is connected.
  */
 bool session::is_connected() const throw () {
-  return (_step == session_keepalive);
+  return (ssh_is_connected(_session));
 }
 
 /**
@@ -273,31 +217,6 @@ bool session::is_connected() const throw () {
  */
 void session::listen(listener* listnr) {
   _listnrs.insert(listnr);
-  return ;
-}
-
-/**
- *  Read data is available.
- *
- *  @param[in] h Handle.
- */
-void session::read(handle& h) {
-  (void)h;
-  static void (session::* const redirector[])() = {
-      &session::_startup,
-      &session::_passwd,
-      &session::_key,
-      &session::_available
-    };
-  try {
-    (this->*redirector[_step])();
-  }
-  catch (std::exception const& e) {
-    logging::error(logging::medium) << "session "
-      << _creds.get_user() << "@" << _creds.get_host()
-      << " encountered an error: " << e.what();
-    this->close();
-  }
   return ;
 }
 
@@ -315,38 +234,6 @@ void session::unlisten(listener* listnr) {
   return ;
 }
 
-/**
- *  Check if read monitoring is wanted.
- *
- *  @return true if read monitoring is wanted.
- */
-bool session::want_read(handle& h) {
-  (void)h;
-  return (_session && (libssh2_session_block_directions(_session)
-                       & LIBSSH2_SESSION_BLOCK_INBOUND));
-}
-
-/**
- *  Check if write monitoring is wanted.
- *
- *  @return true if write monitoring is wanted.
- */
-bool session::want_write(handle& h) {
-  (void)h;
-  return (_session && (libssh2_session_block_directions(_session)
-                       & LIBSSH2_SESSION_BLOCK_OUTBOUND));
-}
-
-/**
- *  Write data is available.
- *
- *  @param[in] h Handle.
- */
-void session::write(handle& h) {
-  read(h);
-  return ;
-}
-
 /**************************************
 *                                     *
 *           Private Methods           *
@@ -360,7 +247,7 @@ void session::write(handle& h) {
  *
  *  @param[in] s Object to copy.
  */
-session::session(session const& s) : com::centreon::handle_listener(s) {
+session::session(session const& s) {
   (void)s;
   assert(!"session is not copyable");
   abort();
@@ -383,266 +270,33 @@ session& session::operator=(session const& s) {
 }
 
 /**
- *  Session is available for operation.
+ *  Notify listeners that session connected.
  */
-void session::_available() {
-  logging::debug(logging::high) << "session " << this
-    << " is available and has " << _listnrs.size() << " listeners";
-  std::set<listener*> listnrs(_listnrs);
-  for (std::set<listener*>::iterator
-         it = listnrs.begin(),
-         end = listnrs.end();
-       it != end;
-       ++it)
-    (*it)->on_available(*this);
+void session::_on_connected() throw () {
+  try {
+    for (std::set<listener*>::iterator
+           it = _listnrs.begin(),
+           end = _listnrs.end();
+         it != end;
+         ++it)
+      (*it)->on_connected(*this);
+  }
+  catch (...) {}
   return ;
 }
 
 /**
- *  Attempt public key authentication.
+ *  Notify listeners that an error occurred on session.
  */
-void session::_key() {
-  // Log message.
-  logging::info(logging::medium)
-    << "launching key-based authentication on session "
-    << _creds.get_user() << "@" << _creds.get_host();
-
-  // Get home directory.
-  passwd* pw(getpwuid(getuid()));
-
-  // Build key paths.
-  std::string priv;
-  std::string pub;
-  if (pw && pw->pw_dir) {
-    priv = pw->pw_dir;
-    priv.append("/");
-    pub = pw->pw_dir;
-    pub.append("/");
+void session::_on_error() throw () {
+  try {
+    for (std::set<listener*>::iterator
+           it = _listnrs.begin(),
+           end = _listnrs.end();
+         it != end;
+         ++it)
+      (*it)->on_error(*this);
   }
-  priv.append(".ssh/id_rsa");
-  pub.append(".ssh/id_rsa.pub");
-
-  // Try public key authentication.
-  int retval(libssh2_userauth_publickey_fromfile(
-               _session,
-               _creds.get_user().c_str(),
-               pub.c_str(),
-               priv.c_str(),
-               _creds.get_password().c_str()));
-  if (retval < 0) {
-    if (retval != LIBSSH2_ERROR_EAGAIN)
-      throw (basic_error() << "user authentication failed");
-  }
-  else {
-    // Log message.
-    logging::info(logging::medium)
-      << "successful key-based authentication on session "
-      << _creds.get_user() << "@" << _creds.get_host();
-
-    // Enable non-blocking mode.
-    libssh2_session_set_blocking(_session, 0);
-
-    // Set execution step.
-    _step = session_keepalive;
-    {
-      std::set<listener*> listnrs(_listnrs);
-      for (std::set<listener*>::iterator
-             it = listnrs.begin(),
-             end = listnrs.end();
-           it != end;
-           ++it)
-        (*it)->on_connected(*this);
-    }
-  }
-  return ;
-}
-
-/**
- *  Try password authentication.
- */
-void session::_passwd() {
-  // Log message.
-  logging::info(logging::medium)
-    << "launching password-based authentication on session "
-    << _creds.get_user() << "@" << _creds.get_host();
-
-  // Try password.
-  int retval(libssh2_userauth_password(
-               _session,
-               _creds.get_user().c_str(),
-               _creds.get_password().c_str()));
-  if (retval != 0) {
-#if LIBSSH2_VERSION_NUM >= 0x010203
-    if (retval == LIBSSH2_ERROR_AUTHENTICATION_FAILED) {
-#else
-    if ((retval != LIBSSH2_ERROR_EAGAIN)
-        && (retval != LIBSSH2_ERROR_ALLOC)
-        && (retval != LIBSSH2_ERROR_SOCKET_SEND)) {
-#endif /* libssh2 version >= 1.2.3 */
-      logging::info(logging::medium)
-        << "could not authenticate with password on session "
-        << _creds.get_user() << "@" << _creds.get_host();
-      _step = session_key;
-      _key();
-    }
-    else if (retval != LIBSSH2_ERROR_EAGAIN) {
-      char* msg;
-      libssh2_session_last_error(_session, &msg, NULL, 0);
-      throw (basic_error() << "password authentication failed: "
-               << msg << " (error " << retval << ")");
-    }
-  }
-  else {
-    // Log message.
-    logging::info(logging::medium)
-      << "successful password authentication on session "
-      << _creds.get_user() << "@" << _creds.get_host();
-
-    // We're now connected.
-    _step = session_keepalive;
-    {
-      std::set<listener*> listnrs(_listnrs);
-      for (std::set<listener*>::iterator
-             it = listnrs.begin(),
-             end = listnrs.end();
-           it != end;
-           ++it)
-        (*it)->on_connected(*this);
-    }
-  }
-  return ;
-}
-
-/**
- *  Perform SSH connection startup.
- */
-void session::_startup() {
-  // Log message.
-  logging::info(logging::high)
-    << "attempting to initialize SSH session "
-    << _creds.get_user() << "@" << _creds.get_host();
-
-  // Enable non-blocking mode.
-  libssh2_session_set_blocking(_session, 0);
-
-  // Exchange banners, keys, setup crypto, compression, ...
-  int retval(libssh2_session_startup(
-               _session,
-               _socket.get_native_handle()));
-  if (retval) {
-    if (retval != LIBSSH2_ERROR_EAGAIN) { // Fatal failure.
-      char* msg;
-      int code(libssh2_session_last_error(_session, &msg, NULL, 0));
-      throw (basic_error() << "failure establishing SSH session: "
-               << msg << " (error " << code << ")");
-    }
-  }
-  else { // Successful startup.
-    // Log message.
-    logging::info(logging::medium) << "SSH session "
-      << _creds.get_user() << "@" << _creds.get_host()
-      << " successfully initialized";
-
-#ifdef WITH_KNOWN_HOSTS_CHECK
-    // Initialize known hosts list.
-    LIBSSH2_KNOWNHOSTS* known_hosts(libssh2_knownhost_init(_session));
-    if (!known_hosts) {
-      char* msg;
-      libssh2_session_last_error(_session, &msg, NULL, 0);
-      throw (basic_error()
-               << "could not create known hosts list: " << msg);
-    }
-
-    // Get home directory.
-    passwd* pw(getpwuid(getuid()));
-
-    // Read OpenSSH's known hosts file.
-    std::string known_hosts_file;
-    if (pw && pw->pw_dir) {
-      known_hosts_file = pw->pw_dir;
-      known_hosts_file.append("/.ssh/");
-    }
-    known_hosts_file.append("known_hosts");
-    int rh(libssh2_knownhost_readfile(
-             known_hosts,
-             known_hosts_file.c_str(),
-             LIBSSH2_KNOWNHOST_FILE_OPENSSH));
-    if (rh < 0)
-      throw (basic_error() << "parsing of known_hosts file "
-               << known_hosts_file << " failed: error " << -rh);
-    else
-      logging::info(logging::medium) << rh
-        << " hosts found in known_hosts file " << known_hosts_file;
-
-    // Check host fingerprint against known hosts.
-    logging::info(logging::high) << "checking fingerprint on session "
-      << _creds.get_user() << "@" << _creds.get_host();
-
-    // Get peer fingerprint.
-    size_t len;
-    int type;
-    char const* fingerprint(libssh2_session_hostkey(
-                              _session,
-                              &len,
-                              &type));
-    if (!fingerprint) {
-      char* msg;
-      libssh2_session_last_error(_session, &msg, NULL, 0);
-      libssh2_knownhost_free(known_hosts);
-      throw (basic_error()
-               << "failed to get remote host fingerprint: " << msg);
-    }
-
-    // Check fingerprint.
-    libssh2_knownhost* kh;
-#if LIBSSH2_VERSION_NUM >= 0x010206
-    // Introduced in 1.2.6.
-    int check(libssh2_knownhost_checkp(
-                known_hosts,
-                _creds.get_host().c_str(),
-                -1,
-                fingerprint,
-                len,
-                LIBSSH2_KNOWNHOST_TYPE_PLAIN
-                | LIBSSH2_KNOWNHOST_KEYENC_RAW,
-                &kh));
-#else
-      // 1.2.5 or older.
-    int check(libssh2_knownhost_check(
-                known_hosts,
-                creds.get_host().c_str(),
-                fingerprint,
-                len,
-                LIBSSH2_KNOWNHOST_TYPE_PLAIN
-                | LIBSSH2_KNOWNHOST_KEYENC_RAW,
-                &kh));
-#endif // LIBSSH2_VERSION_NUM
-
-    // Free known hosts list.
-    libssh2_knownhost_free(known_hosts);
-
-    // Check fingerprint.
-    if (check != LIBSSH2_KNOWNHOST_CHECK_MATCH) {
-      exceptions::basic e(basic_error());
-      e << "host '" << _creds.get_host()
-        << "' is not known or could not be validated: ";
-      if (LIBSSH2_KNOWNHOST_CHECK_NOTFOUND == check)
-        e << "host was not found in known_hosts file "
-          << known_hosts_file;
-      else if (LIBSSH2_KNOWNHOST_CHECK_MISMATCH == check)
-        e << "host fingerprint mismatch with known_hosts file "
-          << known_hosts_file;
-      else
-        e << "unknown error";
-      throw (e);
-    }
-    logging::info(logging::medium) << "fingerprint on session "
-      << _creds.get_user() << "@" << _creds.get_host()
-      << " matches a known host";
-#endif // WITH_KNOWN_HOSTS_CHECKS
-    // Successful peer authentication.
-    _step = session_password;
-    _passwd();
-  }
+  catch (...) {}
   return ;
 }
