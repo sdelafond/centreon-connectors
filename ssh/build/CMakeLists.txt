@@ -39,6 +39,7 @@ include(FindPkgConfig)
 if (PKG_CONFIG_FOUND)
   pkg_check_modules(CLIB QUIET "centreon-clib") # Will be used below.
   pkg_check_modules(LIBSSH QUIET "libssh") # Will be used below.
+  pkg_check_modules(LIBSSH_THREADS QUIET "libssh_threads") # Will be used below.
 endif ()
 
 # Find libssh's headers.
@@ -79,12 +80,25 @@ elseif (WITH_LIBSSH_LIBRARY_DIR)
   if (NOT LIBSSH_LIBRARIES)
     message(FATAL_ERROR "Could not find libssh's library in ${WITH_LIBSSH_LIBRARY_DIR}.")
   endif ()
-elseif (LIBSSH_FOUND) # Was libssh detected with pkg-config ?
+  find_library(
+    LIBSSH_THREADS_LIBRARIES
+    "ssh_threads"
+    PATHS "${WITH_LIBSSH_LIBRARY_DIR}"
+    NO_DEFAULT_PATH)
+  if (NOT LIBSSH_THREADS_LIBRARIES)
+    message(FATAL_ERROR "Could not find libssh's library in ${WITH_LIBSSH_LIBRARY_DIR}.")
+  endif ()
+elseif (LIBSSH_FOUND AND LIBSSH_THREADS_FOUND) # Was libssh detected with pkg-config ?
   set(LIBSSH_LIBRARIES "${LIBSSH_LDFLAGS}")
+  set(LIBSSH_THREADS_LIBRARIES "${LIBSSH_THREADS_LDFLAGS}")
 else ()
   find_library(LIBSSH_LIBRARIES "ssh")
   if (NOT LIBSSH_LIBRARIES)
     message(FATAL_ERROR "Could not find libssh's library (try WITH_LIBSSH_LIBRARY_DIR or WITH_LIBSSH_LIBRARIES).")
+  endif ()
+  find_library(LIBSSH_THREADS_LIBRARIES "ssh_threads")
+  if (NOT LIBSSH_THREADS_LIBRARIES)
+    message(FATAL_ERROR "Could not find libssh's library (try WITH_LIBSSH_LIBRARY_DIR OR WITH_LIBSSH_LIBRARIES).")
   endif ()
 endif ()
 
@@ -148,6 +162,7 @@ add_library("${CONNECTORLIB}"
   "${SRC_DIR}/checks/listener.cc"
   "${SRC_DIR}/checks/result.cc"
   # "${SRC_DIR}/checks/timeout.cc"
+  "${SRC_DIR}/libssh_threads_clib.cc"
   "${SRC_DIR}/multiplexer.cc"
   "${SRC_DIR}/options.cc"
   "${SRC_DIR}/orders/listener.cc"
@@ -163,6 +178,7 @@ add_library("${CONNECTORLIB}"
   "${INC_DIR}/checks/listener.hh"
   "${INC_DIR}/checks/result.hh"
   # "${INC_DIR}/checks/timeout.hh"
+  "${INC_DIR}/libssh_threads_clib.hh"
   "${INC_DIR}/multiplexer.hh"
   "${INC_DIR}/namespace.hh"
   "${INC_DIR}/options.hh"
@@ -178,6 +194,7 @@ add_library("${CONNECTORLIB}"
 target_link_libraries(
   "${CONNECTORLIB}"
   ${LIBSSH_LIBRARIES}
+  ${LIBSSH_THREADS_LIBRARIES}
   ${CLIB_LIBRARIES})
 
 # SSH connector.

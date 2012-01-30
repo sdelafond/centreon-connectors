@@ -20,9 +20,12 @@
 
 #include <exception>
 #include <iostream>
+#include <libssh/callbacks.h>
+#include <libssh/libssh.h>
 #include <stdlib.h>
 #include "com/centreon/connector/ssh/multiplexer.hh"
 #include "com/centreon/connector/ssh/options.hh"
+#include "com/centreon/connector/ssh/libssh_threads_clib.hh"
 #include "com/centreon/exceptions/basic.hh"
 #include "com/centreon/logging/file.hh"
 #include "com/centreon/logging/logger.hh"
@@ -49,6 +52,10 @@ int main(int argc, char* argv[]) {
 
   // Log object.
   logging::file log_file(stderr);
+
+  // libssh struct.
+  ssh_threads_callbacks_struct clib_callbacks;
+  init_libssh_threads_clib(&clib_callbacks);
 
   try {
     // Initializations.
@@ -96,6 +103,20 @@ int main(int argc, char* argv[]) {
       logging::info(logging::low) << "Centreon Connector SSH "
         << CENTREON_CONNECTOR_SSH_VERSION << " starting";
 
+      // Initialize libssh2
+      logging::debug(logging::medium) << "initializing libssh";
+      if (ssh_threads_set_callbacks(&clib_callbacks)
+          || ssh_init())
+        throw (basic_error() << "libssh initialization failed");
+      {
+        char const* version(ssh_version(LIBSSH_VERSION_INT));
+        if (!version)
+          throw (basic_error() << "libssh version is too old (>= "
+                 << SSH_STRINGIFY(LIBSSH_VERSION) << " required)");
+        logging::info(logging::low) << "libssh version "
+          << version << " successfully loaded";
+      }
+
 //       // Program policy.
 //       policy p;
 //       retval = (p.run() ? EXIT_SUCCESS : EXIT_FAILURE);
@@ -106,6 +127,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Deinitializations.
+  ssh_finalize();
   multiplexer::unload();
   logging::engine::unload();
 
