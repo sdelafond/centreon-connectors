@@ -436,7 +436,7 @@ void check::_send_result_and_unregister(result const& r) {
 
     // Send check result to listener.
     if (_listnr)
-      _listnr->on_result(*this, r);
+      _listnr->on_result(r, this);
   }
 
   return ;

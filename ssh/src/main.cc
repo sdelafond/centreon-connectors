@@ -23,9 +23,10 @@
 #include <libssh/callbacks.h>
 #include <libssh/libssh.h>
 #include <stdlib.h>
+#include "com/centreon/connector/ssh/libssh_threads_clib.hh"
 #include "com/centreon/connector/ssh/multiplexer.hh"
 #include "com/centreon/connector/ssh/options.hh"
-#include "com/centreon/connector/ssh/libssh_threads_clib.hh"
+#include "com/centreon/connector/ssh/policy.hh"
 #include "com/centreon/exceptions/basic.hh"
 #include "com/centreon/logging/file.hh"
 #include "com/centreon/logging/logger.hh"
@@ -117,9 +118,9 @@ int main(int argc, char* argv[]) {
           << version << " successfully loaded";
       }
 
-//       // Program policy.
-//       policy p;
-//       retval = (p.run() ? EXIT_SUCCESS : EXIT_FAILURE);
+      // Program policy.
+      policy p;
+      retval = (p.run() ? EXIT_SUCCESS : EXIT_FAILURE);
     }
   }
   catch (std::exception const& e) {

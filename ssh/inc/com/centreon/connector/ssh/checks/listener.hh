@@ -42,7 +42,7 @@ namespace        checks {
                  listener(listener const& l);
     virtual      ~listener();
     listener&    operator=(listener const& l);
-    virtual void on_result(check& c, result const& result) = 0;
+    virtual void on_result(result const& result, check* c) = 0;
   };
 }
 
