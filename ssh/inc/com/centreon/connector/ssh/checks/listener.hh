@@ -21,12 +21,15 @@
 #ifndef CCCS_CHECKS_LISTENER_HH
 #  define CCCS_CHECKS_LISTENER_HH
 
-#  include "com/centreon/connector/ssh/checks/result.hh"
 #  include "com/centreon/connector/ssh/namespace.hh"
 
 CCCS_BEGIN()
 
 namespace        checks {
+  // Forward declarations.
+  class          check;
+  class          result;
+
   /**
    *  @class listener listener.hh "com/centreon/connector/ssh/checks/listener.hh"
    *  @brief Check listener.
@@ -39,7 +42,7 @@ namespace        checks {
                  listener(listener const& l);
     virtual      ~listener();
     listener&    operator=(listener const& l);
-    virtual void on_result(result const& result) = 0;
+    virtual void on_result(check& c, result const& result) = 0;
   };
 }
 

@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "com/centreon/connector/ssh/checks/check.hh"
+#include "com/centreon/connector/ssh/checks/result.hh"
 #include "com/centreon/connector/ssh/checks/timeout.hh"
 #include "com/centreon/connector/ssh/multiplexer.hh"
 #include "com/centreon/exceptions/basic.hh"
@@ -435,7 +436,7 @@ void check::_send_result_and_unregister(result const& r) {
 
     // Send check result to listener.
     if (_listnr)
-      _listnr->on_result(r);
+      _listnr->on_result(*this, r);
   }
 
   return ;
