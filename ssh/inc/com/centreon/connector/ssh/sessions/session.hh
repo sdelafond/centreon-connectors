@@ -46,6 +46,7 @@ namespace                 sessions {
     void                  close();
     void                  connect();
     credentials const&    get_credentials() const throw ();
+    ssh_session           get_libssh_session() const throw ();
     bool                  is_connected() const throw ();
     void                  listen(listener* listnr);
     void                  unlisten(listener* listnr);

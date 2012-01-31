@@ -202,6 +202,15 @@ credentials const& session::get_credentials() const throw () {
 }
 
 /**
+ *  Get the libssh session associated to this session.
+ *
+ *  @return libssh_session object.
+ */
+ssh_session session::get_libssh_session() const throw () {
+  return (_session);
+}
+
+/**
  *  Check if session is connected.
  *
  *  @return true if session is connected.

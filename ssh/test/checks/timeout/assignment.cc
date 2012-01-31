@@ -1,5 +1,5 @@
 /*
-** Copyright 2011 Merethis
+** Copyright 2011-2012 Merethis
 **
 ** This file is part of Centreon Connector SSH.
 **
@@ -21,7 +21,9 @@
 #include "com/centreon/connector/ssh/checks/check.hh"
 #include "com/centreon/connector/ssh/checks/timeout.hh"
 #include "com/centreon/connector/ssh/multiplexer.hh"
+#include "com/centreon/logging/engine.hh"
 
+using namespace com::centreon;
 using namespace com::centreon::connector::ssh;
 
 /**
@@ -31,14 +33,15 @@ using namespace com::centreon::connector::ssh;
  */
 int main() {
   // Initialization.
+  logging::engine::load();
   multiplexer::load();
 
   // Base object.
-  checks::check c1;
+  checks::check c1(42, "centreon", 0);
   checks::timeout t1(&c1);
 
   // Copy object.
-  checks::check c2;
+  checks::check c2(3612, "Merethis", 123456789);
   checks::timeout t2(&c2);
 
   // Assignment.

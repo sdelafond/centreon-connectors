@@ -158,10 +158,10 @@ endif ()
 set(CONNECTORLIB "centreonconnectorssh")
 add_library("${CONNECTORLIB}"
   # Sources.
-  # "${SRC_DIR}/checks/check.cc"
+  "${SRC_DIR}/checks/check.cc"
   "${SRC_DIR}/checks/listener.cc"
   "${SRC_DIR}/checks/result.cc"
-  # "${SRC_DIR}/checks/timeout.cc"
+  "${SRC_DIR}/checks/timeout.cc"
   "${SRC_DIR}/libssh_threads_clib.cc"
   "${SRC_DIR}/multiplexer.cc"
   "${SRC_DIR}/options.cc"
@@ -174,10 +174,10 @@ add_library("${CONNECTORLIB}"
   "${SRC_DIR}/sessions/session.cc"
   # "${SRC_DIR}/sessions/socket_handle.cc"
   # Headers.
-  # "${INC_DIR}/checks/check.hh"
+  "${INC_DIR}/checks/check.hh"
   "${INC_DIR}/checks/listener.hh"
   "${INC_DIR}/checks/result.hh"
-  # "${INC_DIR}/checks/timeout.hh"
+  "${INC_DIR}/checks/timeout.hh"
   "${INC_DIR}/libssh_threads_clib.hh"
   "${INC_DIR}/multiplexer.hh"
   "${INC_DIR}/namespace.hh"
@@ -288,31 +288,31 @@ if (WITH_TESTING)
     "${TEST_DIR}/checks/result/assignment.cc")
   target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
   add_test("${TEST_NAME}" "${TEST_NAME}")
-  # # timeout tests.
-  # #   Constructor.
-  # set(TEST_NAME "checks_timeout_ctor")
-  # add_executable("${TEST_NAME}"
-  #   "${TEST_DIR}/checks/timeout/ctor.cc")
-  # target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
-  # add_test("${TEST_NAME}" "${TEST_NAME}")
-  # #   Copy constructor.
-  # set(TEST_NAME "checks_timeout_ctor_copy")
-  # add_executable("${TEST_NAME}"
-  #   "${TEST_DIR}/checks/timeout/ctor_copy.cc")
-  # target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
-  # add_test("${TEST_NAME}" "${TEST_NAME}")
-  # #   Assignment operator.
-  # set(TEST_NAME "checks_timeout_assignment")
-  # add_executable("${TEST_NAME}"
-  #   "${TEST_DIR}/checks/timeout/assignment.cc")
-  # target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
-  # add_test("${TEST_NAME}" "${TEST_NAME}")
-  # #   Set target check object.
-  # set(TEST_NAME "checks_timeout_set_check")
-  # add_executable("${TEST_NAME}"
-  #   "${TEST_DIR}/checks/timeout/set_check.cc")
-  # target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
-  # add_test("${TEST_NAME}" "${TEST_NAME}")
+  # timeout tests.
+  #   Constructor.
+  set(TEST_NAME "checks_timeout_ctor")
+  add_executable("${TEST_NAME}"
+    "${TEST_DIR}/checks/timeout/ctor.cc")
+  target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
+  add_test("${TEST_NAME}" "${TEST_NAME}")
+  #   Copy constructor.
+  set(TEST_NAME "checks_timeout_ctor_copy")
+  add_executable("${TEST_NAME}"
+    "${TEST_DIR}/checks/timeout/ctor_copy.cc")
+  target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
+  add_test("${TEST_NAME}" "${TEST_NAME}")
+  #   Assignment operator.
+  set(TEST_NAME "checks_timeout_assignment")
+  add_executable("${TEST_NAME}"
+    "${TEST_DIR}/checks/timeout/assignment.cc")
+  target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
+  add_test("${TEST_NAME}" "${TEST_NAME}")
+  #   Set target check object.
+  set(TEST_NAME "checks_timeout_set_check")
+  add_executable("${TEST_NAME}"
+    "${TEST_DIR}/checks/timeout/set_check.cc")
+  target_link_libraries("${TEST_NAME}" "${CONNECTORLIB}")
+  add_test("${TEST_NAME}" "${TEST_NAME}")
 
 
   #

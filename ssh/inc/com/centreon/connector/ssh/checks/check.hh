@@ -1,5 +1,5 @@
 /*
-** Copyright 2011 Merethis
+** Copyright 2011-2012 Merethis
 **
 ** This file is part of Centreon Connector SSH.
 **
@@ -21,6 +21,7 @@
 #ifndef CCCS_CHECKS_CHECK_HH
 #  define CCCS_CHECKS_CHECK_HH
 
+#  include <libssh/libssh.h>
 #  include <string>
 #  include <time.h>
 #  include "com/centreon/connector/ssh/checks/listener.hh"
@@ -40,20 +41,17 @@ namespace              checks {
    *
    *  Execute a check by opening a new channel on a SSH session.
    */
-  class                check : public sessions::listener {
+  class                check {
   public:
-                       check();
-                       ~check() throw ();
-    void               execute(
-                         sessions::session& sess,
+                       check(
                          unsigned long long cmd_id,
                          std::string const& cmd,
                          time_t tmt);
+                       ~check() throw ();
+    void               execute(sessions::session& sess);
     void               listen(checks::listener* listnr);
-    void               on_available(sessions::session& sess);
-    void               on_close(sessions::session& sess);
-    void               on_connected(sessions::session& sess);
     void               on_timeout();
+    void               run();
     void               unlisten(checks::listener* listnr);
 
   private:
@@ -72,7 +70,7 @@ namespace              checks {
     bool               _read();
     void               _send_result_and_unregister(result const& r);
 
-    LIBSSH2_CHANNEL*   _channel;
+    ssh_channel        _channel;
     std::string        _cmd;
     unsigned long long _cmd_id;
     checks::listener*  _listnr;
