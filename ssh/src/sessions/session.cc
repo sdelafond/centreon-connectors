@@ -256,7 +256,7 @@ void session::unlisten(listener* listnr) {
  *
  *  @param[in] s Object to copy.
  */
-session::session(session const& s) {
+session::session(session const& s) : socket_handle() {
   (void)s;
   assert(!"session is not copyable");
   abort();
@@ -283,6 +283,7 @@ session& session::operator=(session const& s) {
  */
 void session::_on_connected() throw () {
   try {
+    set_native_handle(ssh_get_fd(_session));
     for (std::set<listener*>::iterator
            it = _listnrs.begin(),
            end = _listnrs.end();

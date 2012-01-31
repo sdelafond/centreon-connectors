@@ -18,11 +18,6 @@
 ** <http://www.gnu.org/licenses/>.
 */
 
-#include <errno.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #include "com/centreon/connector/ssh/sessions/socket_handle.hh"
 #include "com/centreon/exceptions/basic.hh"
 
@@ -45,21 +40,7 @@ socket_handle::socket_handle(native_handle handl) : _handl(handl) {}
 /**
  *  Destructor.
  */
-socket_handle::~socket_handle() throw () {
-  this->close();
-}
-
-/**
- *  Close socket descriptor.
- */
-void socket_handle::close() {
-  if (_handl != native_handle_null) {
-    shutdown(_handl, SHUT_RDWR);
-    ::close(_handl);
-    _handl = native_handle_null;
-  }
-  return ;
-}
+socket_handle::~socket_handle() throw () {}
 
 /**
  *  Get the native socket handle.
@@ -79,12 +60,11 @@ native_handle socket_handle::get_native_handle() {
  *  @return Number of bytes actually read.
  */
 unsigned long socket_handle::read(void* data, unsigned long size) {
-  ssize_t rb(::read(_handl, data, size));
-  if (rb < 0) {
-    char const* msg(strerror(errno));
-    throw (basic_error() << "socket read error: " << msg);
-  }
-  return (rb);
+  (void)data;
+  (void)size;
+  throw (basic_error() << "direct read attempt on socket handle "
+         << _handl);
+  return (0);
 }
 
 /**
@@ -93,7 +73,6 @@ unsigned long socket_handle::read(void* data, unsigned long size) {
  *  @param[in] handl Native socket descriptor.
  */
 void socket_handle::set_native_handle(native_handle handl) {
-  this->close();
   _handl = handl;
   return ;
 }
@@ -109,10 +88,9 @@ void socket_handle::set_native_handle(native_handle handl) {
 unsigned long socket_handle::write(
                                void const* data,
                                unsigned long size) {
-  ssize_t wb(::write(_handl, data, size));
-  if (wb < 0) {
-    char const* msg(strerror(errno));
-    throw (basic_error() << "socket write error: " << msg);
-  }
-  return (wb);
+  (void)data;
+  (void)size;
+  throw (basic_error() << "direct write attempt on socket handle "
+         << _handl);
+  return (0);
 }
