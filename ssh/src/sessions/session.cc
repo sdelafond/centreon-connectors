@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <memory>
 #include <stdlib.h>
+#include "com/centreon/concurrency/locker.hh"
 #include "com/centreon/connector/ssh/multiplexer.hh"
 #include "com/centreon/connector/ssh/sessions/class_task.hh"
 #include "com/centreon/connector/ssh/sessions/listener.hh"
@@ -235,6 +236,7 @@ void session::listen(listener* listnr) {
  *  @param[in] listnr Listener to remove.
  */
 void session::unlisten(listener* listnr) {
+  concurrency::locker lock(this);
   unsigned int size(_listnrs.size());
   _listnrs.erase(listnr);
   logging::debug(logging::low) << "session " << this
@@ -284,6 +286,7 @@ session& session::operator=(session const& s) {
  */
 void session::_on_connected() throw () {
   try {
+    concurrency::locker lock(this);
     set_native_handle(ssh_get_fd(_session));
     for (std::set<listener*>::iterator
            it = _listnrs.begin(),
@@ -301,9 +304,14 @@ void session::_on_connected() throw () {
  */
 void session::_on_error() throw () {
   try {
+    std::set<listener*> my_listeners;
+    {
+      concurrency::locker lock(this);
+      my_listeners = _listnrs;
+    }
     for (std::set<listener*>::iterator
-           it = _listnrs.begin(),
-           end = _listnrs.end();
+           it = my_listeners.begin(),
+           end = my_listeners.end();
          it != end;
          ++it)
       (*it)->on_error(*this);

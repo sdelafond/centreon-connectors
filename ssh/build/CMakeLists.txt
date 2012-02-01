@@ -191,6 +191,7 @@ add_library("${CONNECTORLIB}"
   "${INC_DIR}/sessions/listener.hh"
   "${INC_DIR}/sessions/session.hh"
   "${INC_DIR}/sessions/socket_handle.hh"
+  "${INC_DIR}/threaded_method.hh"
 )
 target_link_libraries(
   "${CONNECTORLIB}"

@@ -21,17 +21,29 @@
 #ifndef CCCS_POLICY_HH
 #  define CCCS_POLICY_HH
 
+#  include <map>
+#  include <set>
 #  include "com/centreon/concurrency/mutex.hh"
 #  include "com/centreon/connector/ssh/checks/listener.hh"
 #  include "com/centreon/connector/ssh/namespace.hh"
 #  include "com/centreon/connector/ssh/orders/listener.hh"
 #  include "com/centreon/connector/ssh/orders/parser.hh"
 #  include "com/centreon/connector/ssh/reporter.hh"
+#  include "com/centreon/connector/ssh/sessions/credentials.hh"
 #  include "com/centreon/connector/ssh/sessions/listener.hh"
+#  include "com/centreon/connector/ssh/threaded_method.hh"
 #  include "com/centreon/handle_listener.hh"
 #  include "com/centreon/io/file_stream.hh"
 
 CCCS_BEGIN()
+
+// Forward declarations.
+namespace            checks {
+  class              check;
+}
+namespace            sessions {
+  class              session;
+}
 
 /**
  *  @class policy policy.hh "com/centreon/connector/ssh/policy.hh"
@@ -81,14 +93,27 @@ public:
 private:
                      policy(policy const& p);
   policy&            operator=(policy const& p);
+  void               _add(sessions::session* sess);
+  void               _add(checks::check* chk, sessions::session* sess);
   void               _internal_copy(policy const& p);
+  void               _process_io(sessions::session* sess, bool out);
+  void               _remove(checks::check* chk);
+  void               _remove(sessions::session* sess);
 
+  std::map<checks::check*, sessions::session*>
+                     _checks;
+  std::map<sessions::credentials, sessions::session*>
+                     _creds;
   bool               _error;
   concurrency::mutex _mutex;
   orders::parser     _parser;
   reporter           _reporter;
+  std::map<sessions::session*, std::set<checks::check*> >
+                     _sessions;
   io::file_stream    _sin;
   io::file_stream    _sout;
+  std::list<threaded_method<sessions::session, void>*>
+                     _threads;
 };
 
 CCCS_END()

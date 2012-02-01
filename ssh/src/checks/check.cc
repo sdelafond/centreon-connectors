@@ -245,6 +245,24 @@ void check::unlisten(checks::listener* listnr) {
   return ;
 }
 
+/**
+ *  Check whether or not channel needs to read.
+ *
+ *  @return true if channel needs to read.
+ */
+bool check::want_read() {
+  return (true);
+}
+
+/**
+ *  Check whether or not channel needs to write.
+ *
+ *  @return true if channel needs to write.
+ */
+bool check::want_write() {
+  return (_step != chan_read);
+}
+
 /**************************************
 *                                     *
 *           Private Methods           *

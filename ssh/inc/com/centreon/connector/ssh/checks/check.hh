@@ -53,6 +53,8 @@ namespace              checks {
     void               on_timeout();
     void               run();
     void               unlisten(checks::listener* listnr);
+    bool               want_read();
+    bool               want_write();
 
   private:
     enum               e_step {
