@@ -23,6 +23,7 @@
 
 #  include <libssh/libssh.h>
 #  include <set>
+#  include "com/centreon/concurrency/mutex.hh"
 #  include "com/centreon/connector/ssh/namespace.hh"
 #  include "com/centreon/connector/ssh/sessions/credentials.hh"
 #  include "com/centreon/connector/ssh/sessions/socket_handle.hh"
@@ -40,7 +41,8 @@ namespace                 sessions {
    *  SSH session between Centreon Connector SSH and a remote
    *  host. The session is kept open as long as needed.
    */
-  class                   session : public socket_handle {
+  class                   session : public concurrency::mutex,
+                                    public socket_handle {
   public:
                           session(credentials const& creds);
                           ~session() throw ();

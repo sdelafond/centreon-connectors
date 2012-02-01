@@ -256,7 +256,8 @@ void session::unlisten(listener* listnr) {
  *
  *  @param[in] s Object to copy.
  */
-session::session(session const& s) : socket_handle() {
+session::session(session const& s)
+  : concurrency::mutex(), socket_handle() {
   (void)s;
   assert(!"session is not copyable");
   abort();
