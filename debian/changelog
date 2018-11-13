@@ -1,0 +1,5 @@
+centreon-connectors (18.10.0-1) unstable; urgency=medium
+
+  * Initial release (Closes: #913900)
+
+ -- Sebastien Delafond <seb@debian.org>  Mon, 12 Nov 2018 15:56:47 +0100

@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+
+include /usr/share/dpkg/default.mk
+
+export DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+CFLAGS+=$(CPPFLAGS)
+CXXFLAGS+=$(CPPFLAGS)
+
+export CMAKE_OPTIONS := \
+  -DCMAKE_C_COMPILER="$(CC)" \
+  -DCMAKE_CXX_COMPILER="$(CXX)" \
+  -DCMAKE_CXX_FLAGS="$(CXXFLAGS)" \
+  -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="$(LDFLAGS)" \
+  -DWITH_PREFIX=/usr \
+  -DWITH_PREFIX_BINARY=/usr/sbin \
+  -DWITH_PREFIX_LIB=/usr/lib/centreon-connector
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	cd perl/build ; cmake $(CMAKE_OPTIONS)
+	cd ssh/build ; cmake $(CMAKE_OPTIONS)
+
+override_dh_auto_build:
+	cd perl/build ; make
+	cd ssh/build ; make
