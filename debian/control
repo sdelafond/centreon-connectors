@@ -6,8 +6,8 @@ Uploaders: Sebastien Delafond <seb@debian.org>
 Build-Depends: debhelper (>= 11), cmake, libcentreon-clib, pkg-config, libssh2-1-dev, libperl-dev
 Standards-Version: 4.2.1
 Homepage: https://github.com/centreon/centreon-connectors
-Vcs-Browser: https://salsa.debian.org/debian/centreon-connectors
-Vcs-Git: https://salsa.debian.org/debian/centreon-connectors.git
+Vcs-Browser: https://salsa.debian.org/centreon-team/centreon-connectors
+Vcs-Git: https://salsa.debian.org/centreon-team/centreon-connectors.git
 
 Package: centreon-connector-ssh
 Architecture: any
