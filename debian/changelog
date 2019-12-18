@@ -1,3 +1,14 @@
+centreon-connectors (19.10.0-1~1.gbp6eb5a7) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @6eb5a75dda785ce6d1c29504513378abdabaf0e6 **
+
+  [ Sébastien Delafond ]
+  * Add debian/watch
+  * New upstream version 19.10.0
+  * Bump up Standards-Version
+
+ -- Sebastien Delafond <seb@debian.org>  Wed, 18 Dec 2019 09:39:21 +0100
+
 centreon-connectors (18.10.0-1) unstable; urgency=medium
 
   * Initial release (Closes: #913900)
