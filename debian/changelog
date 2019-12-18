@@ -1,3 +1,11 @@
+centreon-connectors (19.10.0-1) unstable; urgency=medium
+
+  * Add debian/watch
+  * New upstream version 19.10.0
+  * Bump up Standards-Version
+
+ -- Sebastien Delafond <seb@debian.org>  Fri, 27 Dec 2019 08:03:21 +0100
+
 centreon-connectors (18.10.0-1) unstable; urgency=medium
 
   * Initial release (Closes: #913900)
